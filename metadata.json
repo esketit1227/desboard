@@ -1,0 +1,5 @@
+{
+  "name": "desboard",
+  "description": "Professional fashion technical packet generator. Upload a garment photo to generate a complete spec sheet with schematic drawings, BOM, measurements, and construction details ready for PDF export.",
+  "requestFramePermissions": []
+}

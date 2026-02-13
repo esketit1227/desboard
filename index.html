@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>desboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;800;900&family=JetBrains+Mono:wght@300;400&display=swap');
+      
+      body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        background-attachment: fixed;
+        transition: background 0.5s ease, color 0.5s ease;
+      }
+
+      /* LIGHT MODE (Default) */
+      body {
+        /* Hyper-minimalist White/Gray Gradient */
+        background: linear-gradient(180deg, #FFFFFF 0%, #F2F2F7 100%);
+        color: #1D1D1F;
+      }
+      
+      .glass-panel {
+        background: rgba(255, 255, 255, 0.65);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+      }
+      
+      .glass-card {
+        background: rgba(255, 255, 255, 0.6);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.04);
+      }
+
+      /* DARK MODE */
+      body.dark-mode {
+        background: linear-gradient(180deg, #000000 0%, #1C1C1E 100%);
+        color: #F5F5F7;
+      }
+
+      .glass-panel-dark {
+        background: rgba(28, 28, 30, 0.75);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .glass-card-dark {
+        background: rgba(28, 28, 30, 0.6);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.4);
+      }
+
+      .font-mono {
+        font-family: 'JetBrains Mono', monospace;
+      }
+
+      /* Apple-style scrollbar */
+      ::-webkit-scrollbar {
+        width: 0px;
+        background: transparent;
+      }
+
+      /* Animations */
+      @keyframes scale-in {
+        from { transform: scale(0.98); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+      }
+      .animate-scale-in {
+        animation: scale-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+      
+      @keyframes fade-in-up {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+      .animate-fade-in-up {
+        animation: fade-in-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+
+      /* Logo Text Loader Animation - Shimmer Effect */
+      .loading-logo-text {
+        position: relative;
+        display: inline-block;
+        background: linear-gradient(to right, #000 0%, #000 40%, #888 50%, #000 60%, #000 100%);
+        background-size: 200% auto;
+        color: #000;
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: shine 3s linear infinite;
+      }
+
+      .dark-mode .loading-logo-text {
+        background: linear-gradient(to right, #fff 0%, #fff 40%, #444 50%, #fff 60%, #fff 100%);
+        background-size: 200% auto;
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      @keyframes shine {
+        to {
+          background-position: 200% center;
+        }
+      }
+
+      /* ROBUST PRINT STYLES FOR PDF EXPORT */
+      @media print {
+        @page {
+          margin: 0;
+          size: auto; 
+        }
+        
+        body {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          background: white !important;
+          background-image: none !important;
+          color: black !important;
+          overflow: visible !important;
+          height: auto !important;
+        }
+
+        /* Hide all UI elements */
+        .no-print, nav, .fixed, button {
+          display: none !important;
+        }
+        
+        /* Reset Layout for the main container */
+        #root {
+          display: block !important;
+          width: 100% !important;
+          height: auto !important;
+          overflow: visible !important;
+        }
+        
+        main {
+          padding: 0 !important;
+          margin: 0 !important;
+          width: 100% !important;
+        }
+
+        .tech-pack-page-wrapper {
+          position: relative !important;
+          width: 100% !important;
+          height: auto !important;
+          min-height: 297mm;
+          margin: 0 !important;
+          padding: 0 !important;
+          display: block !important;
+          page-break-after: always;
+          break-after: page;
+          overflow: visible !important;
+          transform: none !important;
+          left: auto !important;
+          top: auto !important;
+        }
+
+        .tech-pack-page {
+          width: 100% !important;
+          max-width: 210mm !important;
+          margin: 0 auto !important;
+          padding: 10mm !important;
+          transform: none !important;
+          position: static !important;
+          box-shadow: none !important;
+          border: none !important;
+          left: auto !important;
+          margin-left: 0 !important;
+          border-radius: 0 !important;
+        }
+
+        input, textarea, select {
+          border: none !important;
+          background: transparent !important;
+          resize: none !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          -webkit-appearance: none;
+          box-shadow: none !important;
+          color: #000 !important;
+          width: auto !important;
+          min-width: 100%;
+        }
+        
+        input::placeholder, textarea::placeholder {
+            color: transparent !important;
+        }
+
+        img {
+          max-width: 100% !important;
+        }
+        
+        .mix-blend-multiply {
+            mix-blend-mode: multiply !important;
+        }
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

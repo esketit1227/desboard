@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { X, Factory as FactoryIcon, MapPin, DollarSign, Leaf, CheckCircle, ExternalLink, Filter, ShoppingBag, Send, Loader2, Award, Zap } from 'lucide-react';
 import { Factory, TechPackData } from '../types';
@@ -76,12 +75,12 @@ const FactoryMatchingView: React.FC<Props> = ({ isOpen, onClose, data }) => {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 py-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-md transition-opacity" onClick={onClose} />
       
-      <div className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] h-[800px] animate-scale-in">
+      <div className="relative w-full max-w-4xl bg-white dark:bg-[#1C1C1E] rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] h-[800px] animate-scale-in border border-white/20 dark:border-white/10">
         
         {/* Header */}
-        <div className="bg-[#1D1D1F] text-white p-6 pb-0">
+        <div className="bg-[#1D1D1F] dark:bg-black text-white p-6 pb-0">
             <div className="flex justify-between items-start mb-6">
                 <div>
                     <div className="flex items-center gap-2 mb-2">
@@ -117,15 +116,15 @@ const FactoryMatchingView: React.FC<Props> = ({ isOpen, onClose, data }) => {
         </div>
 
         {/* Filters */}
-        <div className="p-4 border-b border-gray-100 bg-gray-50 flex flex-wrap gap-4 items-center">
-            <div className="flex items-center gap-2 text-sm font-medium text-gray-500">
+        <div className="p-4 border-b border-gray-100 dark:border-white/10 bg-gray-50 dark:bg-white/5 flex flex-wrap gap-4 items-center">
+            <div className="flex items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400">
                 <Filter size={16} /> Filters:
             </div>
             
             <select 
                 value={selectedRegion} 
                 onChange={(e) => setSelectedRegion(e.target.value)}
-                className="bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-500"
+                className="bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-white/10 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-500 text-black dark:text-white"
             >
                 {regions.map(r => <option key={r} value={r}>{r === 'All' ? 'All Regions' : r}</option>)}
             </select>
@@ -133,7 +132,7 @@ const FactoryMatchingView: React.FC<Props> = ({ isOpen, onClose, data }) => {
             <select 
                 value={selectedTier} 
                 onChange={(e) => setSelectedTier(e.target.value)}
-                className="bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-500"
+                className="bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-white/10 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-500 text-black dark:text-white"
             >
                 <option value="All">All Price Tiers</option>
                 <option value="Budget">Budget</option>
@@ -141,8 +140,8 @@ const FactoryMatchingView: React.FC<Props> = ({ isOpen, onClose, data }) => {
                 <option value="High">Premium / Luxury</option>
             </select>
 
-            <div className="flex items-center gap-2 text-sm bg-white border border-gray-200 rounded-lg px-3 py-1.5">
-                <span className="text-gray-500">Max MOQ:</span>
+            <div className="flex items-center gap-2 text-sm bg-white dark:bg-[#2C2C2E] border border-gray-200 dark:border-white/10 rounded-lg px-3 py-1.5 text-black dark:text-white">
+                <span className="text-gray-500 dark:text-gray-400">Max MOQ:</span>
                 <input 
                     type="range" 
                     min="50" 
@@ -157,17 +156,17 @@ const FactoryMatchingView: React.FC<Props> = ({ isOpen, onClose, data }) => {
         </div>
 
         {/* List Content */}
-        <div className="flex-1 overflow-y-auto p-6 bg-gray-50 relative">
+        <div className="flex-1 overflow-y-auto p-6 bg-gray-50 dark:bg-black/20 relative">
             
             {/* Alibaba Connect State */}
             {activeTab === 'alibaba' && !isAlibabaConnected && (
-                <div className="absolute inset-0 z-10 bg-white/90 backdrop-blur-sm flex items-center justify-center p-8">
-                    <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full text-center border border-gray-100">
+                <div className="absolute inset-0 z-10 bg-white/90 dark:bg-black/90 backdrop-blur-sm flex items-center justify-center p-8">
+                    <div className="bg-white dark:bg-[#1C1C1E] p-8 rounded-3xl shadow-xl max-w-md w-full text-center border border-gray-100 dark:border-white/10">
                         <div className="w-16 h-16 bg-[#FF6600] rounded-2xl flex items-center justify-center mx-auto mb-6 text-white font-bold text-2xl shadow-lg shadow-orange-200">
                             Al
                         </div>
-                        <h3 className="text-xl font-bold text-gray-900 mb-2">Connect to Alibaba.com</h3>
-                        <p className="text-gray-500 text-sm mb-6">Link your account to search verified suppliers, check Gold status, and send tech packs directly.</p>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Connect to Alibaba.com</h3>
+                        <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">Link your account to search verified suppliers, check Gold status, and send tech packs directly.</p>
                         <button 
                             onClick={handleAlibabaConnect}
                             disabled={isConnecting}
@@ -185,9 +184,9 @@ const FactoryMatchingView: React.FC<Props> = ({ isOpen, onClose, data }) => {
             ) : (
                 <div className="grid gap-4">
                     {matchedFactories.map((factory) => (
-                        <div key={factory.id} className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row gap-6 items-start md:items-center group">
+                        <div key={factory.id} className="bg-white dark:bg-[#1C1C1E] rounded-xl p-5 border border-gray-200 dark:border-white/10 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row gap-6 items-start md:items-center group">
                             
-                            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0 text-gray-500 font-bold text-xl overflow-hidden border border-gray-100">
+                            <div className="w-12 h-12 bg-gray-100 dark:bg-white/5 rounded-full flex items-center justify-center flex-shrink-0 text-gray-500 dark:text-gray-400 font-bold text-xl overflow-hidden border border-gray-100 dark:border-white/5">
                                 {factory.source === 'alibaba' ? (
                                     <span className="text-[#FF6600]">Al</span>
                                 ) : (
@@ -197,28 +196,28 @@ const FactoryMatchingView: React.FC<Props> = ({ isOpen, onClose, data }) => {
                             
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                    <h3 className="font-bold text-lg text-gray-900 truncate">{factory.name}</h3>
+                                    <h3 className="font-bold text-lg text-gray-900 dark:text-white truncate">{factory.name}</h3>
                                     {factory.badges?.includes('Verified') && (
-                                        <span className="flex items-center gap-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold px-1.5 py-0.5 rounded border border-blue-100 uppercase tracking-wide">
+                                        <span className="flex items-center gap-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-[10px] font-bold px-1.5 py-0.5 rounded border border-blue-100 dark:border-blue-900/30 uppercase tracking-wide">
                                             <CheckCircle size={10} /> Verified
                                         </span>
                                     )}
                                     {factory.badges?.includes('Gold Supplier') && (
-                                        <span className="flex items-center gap-0.5 bg-yellow-50 text-yellow-700 text-[10px] font-bold px-1.5 py-0.5 rounded border border-yellow-100 uppercase tracking-wide">
+                                        <span className="flex items-center gap-0.5 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 text-[10px] font-bold px-1.5 py-0.5 rounded border border-yellow-100 dark:border-yellow-900/30 uppercase tracking-wide">
                                             <Award size={10} /> Gold
                                         </span>
                                     )}
                                 </div>
-                                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 mb-2">
+                                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 dark:text-gray-400 mb-2">
                                     <span className="flex items-center gap-1"><MapPin size={14} /> {factory.region}</span>
                                     <span className="flex items-center gap-1"><DollarSign size={14} /> {factory.priceTier} Tier</span>
-                                    <span className="flex items-center gap-1 font-mono text-xs bg-gray-100 px-1.5 rounded">MOQ: {factory.moq}</span>
+                                    <span className="flex items-center gap-1 font-mono text-xs bg-gray-100 dark:bg-white/10 px-1.5 rounded">MOQ: {factory.moq}</span>
                                     {factory.yearsActive && <span className="text-gray-400 text-xs">{factory.yearsActive} Yrs</span>}
-                                    {factory.responseRate && <span className="text-green-600 text-xs font-medium flex items-center gap-0.5"><Zap size={10}/> {factory.responseRate} Resp.</span>}
+                                    {factory.responseRate && <span className="text-green-600 dark:text-green-400 text-xs font-medium flex items-center gap-0.5"><Zap size={10}/> {factory.responseRate} Resp.</span>}
                                 </div>
                                 <div className="flex gap-2 overflow-x-auto scrollbar-hide">
                                     {factory.specialties.map(s => (
-                                        <span key={s} className="text-[10px] bg-gray-50 text-gray-600 px-2 py-0.5 rounded border border-gray-100 whitespace-nowrap">{s}</span>
+                                        <span key={s} className="text-[10px] bg-gray-50 dark:bg-white/5 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded border border-gray-100 dark:border-white/5 whitespace-nowrap">{s}</span>
                                     ))}
                                 </div>
                             </div>
@@ -234,14 +233,14 @@ const FactoryMatchingView: React.FC<Props> = ({ isOpen, onClose, data }) => {
                                         className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-sm
                                             ${activeTab === 'alibaba' 
                                                 ? 'bg-[#FF6600] text-white hover:bg-[#E65C00] shadow-orange-100' 
-                                                : 'bg-black text-white hover:bg-gray-800'}`}
+                                                : 'bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200'}`}
                                     >
                                         <Send size={14} /> Send Tech Pack
                                     </button>
                                 )}
                                 
                                 {activeTab === 'internal' ? (
-                                    <button className="text-xs text-gray-500 hover:text-black flex items-center gap-1">
+                                    <button className="text-xs text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white flex items-center gap-1">
                                         View Profile <ExternalLink size={10} />
                                     </button>
                                 ) : (

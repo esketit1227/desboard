@@ -194,39 +194,56 @@ const stripImagesFromData = (data: TechPackData): any => {
     return clone;
 };
 
-// Helper to generate image with model fallback
-const generateImageWithFallback = async (ai: GoogleGenAI, prompt: string, extraParts: any[] = [], width: '1K' | '2K' = '1K', aspectRatio: '1:1' | '3:4' = '1:1') => {
-    try {
-        // Try the Pro model first
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-pro-image-preview',
+// Helper delay function
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Helper to generate image with model fallback and exponential backoff
+const generateImageWithFallback = async (ai: GoogleGenAI, prompt: string, extraParts: any[] = [], width: '1K' | '2K' = '1K', aspectRatio: '1:1' | '3:4' = '1:1', preferPro: boolean = false, retryCount = 2) => {
+    
+    const tryGenerate = async (model: string, config: any) => {
+        return await ai.models.generateContent({
+            model: model,
             contents: { parts: [...extraParts, { text: prompt }] },
-            config: {
-                imageConfig: {
-                    aspectRatio: aspectRatio,
-                    imageSize: width
-                }
-            }
+            config: config
         });
-        return response;
-    } catch (e: any) {
-        // Check for permission denied or 403 errors
-        if (e.message?.includes('403') || e.message?.includes('PERMISSION_DENIED') || e.toString().includes('permission')) {
-            console.warn("Falling back to gemini-2.5-flash-image due to permission error");
-            // Fallback to Flash Image model
-            // Note: Flash image does not support imageSize config, only aspectRatio
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash-image',
-                contents: { parts: [...extraParts, { text: prompt }] },
-                config: {
-                    imageConfig: {
-                        aspectRatio: aspectRatio
-                    }
-                }
-            });
-            return response;
+    };
+
+    const attemptGeneration = async (usePro: boolean, attemptsLeft: number): Promise<any> => {
+        const model = usePro ? 'gemini-3-pro-image-preview' : 'gemini-2.5-flash-image';
+        // Only Pro supports imageSize
+        const config = {
+             imageConfig: usePro ? { aspectRatio: aspectRatio, imageSize: width } : { aspectRatio: aspectRatio }
+        };
+
+        try {
+            const res = await tryGenerate(model, config);
+            return res;
+        } catch (e: any) {
+             console.warn(`Attempt failed for ${model}:`, e.message);
+             // Handle 429 Rate Limits or 503 Service Unavailable with exponential backoff
+             if (e.message?.includes('429') || e.status === 429 || e.status === 503 || e.status === 500) {
+                 if (attemptsLeft > 0) {
+                     const waitTime = 2000 * Math.pow(2, (2 - attemptsLeft)); 
+                     await delay(waitTime);
+                     return attemptGeneration(usePro, attemptsLeft - 1);
+                 }
+             }
+             throw e; // Rethrow to trigger fallback to other model
         }
-        throw e;
+    };
+
+    // 1. Primary Attempt
+    try {
+        return await attemptGeneration(preferPro, retryCount);
+    } catch (e: any) {
+        // 2. Fallback Attempt
+        try {
+            console.log(`Fallback to ${!preferPro ? 'Pro' : 'Flash'}...`);
+            return await attemptGeneration(!preferPro, retryCount); 
+        } catch (fallbackError) {
+             console.error("All image generation attempts failed", fallbackError);
+             throw fallbackError;
+        }
     }
 };
 
@@ -247,7 +264,7 @@ export const analyzeGarmentImage = async (base64Images: string[], type: 'clothin
 
   const prompt = type === 'footwear'
     ? "Analyze these shoe images and generate a professional Footwear Tech Pack. Identify construction, materials (sole, upper), branding, and packaging."
-    : "Analyze these garment images. Generate a professional Tech Pack. Extract 3-5 key colors with Pantone codes. Extract labels/packaging. Estimate precise measurements for a Size M. Include prompts for Front, Back, and Side sketches.";
+    : "Analyze these garment images. Generate a professional Tech Pack. Extract 3-5 key colors with Pantone codes. Extract labels/packaging. Estimate precise measurements for a Size M. Include prompts for Front, Back, and Side sketches. CRITICAL: You must generate a full Bill of Materials (BOM) and step-by-step Construction details.";
 
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
@@ -275,7 +292,6 @@ export const analyzeGarmentImage = async (base64Images: string[], type: 'clothin
     ];
   }
 
-  // Ensure palette exists
   if (!data.palette) {
       data.palette = [
           { name: data.colorWay || 'Base', hex: '#1D1D1F', pantone: '19-0000 TCX' }
@@ -286,7 +302,6 @@ export const analyzeGarmentImage = async (base64Images: string[], type: 'clothin
       data.graphics = data.graphics.map((g, i) => ({ ...g, id: `g-${i}` }));
   }
 
-  // Ensure labels and packaging arrays exist with ids
   if (data.labels) {
       data.labels = data.labels.map((l, i) => ({ ...l, id: `lbl-${i}` }));
   } else {
@@ -306,141 +321,9 @@ export const analyzeGarmentImage = async (base64Images: string[], type: 'clothin
       ];
   }
 
-  // Initialize reference images
   data.referenceImages = [];
 
   return data;
-};
-
-export const generateRandomTechPack = async (): Promise<TechPackData> => {
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) throw new Error("API Key missing");
-    const ai = new GoogleGenAI({ apiKey });
-
-    // Pick 6 random keywords for greater variety and complexity
-    const shuffled = LUCKY_KEYWORDS.sort(() => 0.5 - Math.random());
-    const selectedKeywords = shuffled.slice(0, 6).join(", ");
-
-    const prompt = `
-    Act as a high-fashion Creative Director.
-    Invent a unique, cutting-edge garment design based on these themes: ${selectedKeywords}.
-    
-    The design should be stylish, street-wear / high fashion appropriate.
-    Think: Avant-garde, deconstructed, luxury, bold silhouettes.
-    
-    Generate a full Tech Pack JSON for this invented garment.
-    `;
-
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: { parts: [{ text: prompt }] },
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: techPackSchema,
-            systemInstruction: "You are a visionary fashion designer. Create complete, detailed manufacturing specifications for a new garment design."
-        }
-    });
-
-    const data = JSON.parse(response.text!) as TechPackData;
-    
-    // Ensure arrays are initialized
-    if (!data.colorways) data.colorways = [{ name: data.colorWay || 'Base', code: '#000000' }];
-    if (!data.palette) data.palette = [{ name: 'Base', hex: '#000000', pantone: '19-0000 TCX' }];
-    if (!data.labels) data.labels = [];
-    if (!data.packaging) data.packaging = [];
-    if (!data.graphics) data.graphics = [];
-    data.referenceImages = [];
-
-    // Add IDs
-    if (data.graphics) data.graphics = data.graphics.map((g, i) => ({ ...g, id: `g-${i}` }));
-    if (data.labels) data.labels = data.labels.map((l, i) => ({ ...l, id: `lbl-${i}` }));
-    if (data.packaging) data.packaging = data.packaging.map((p, i) => ({ ...p, id: `pkg-${i}` }));
-
-    return data;
-};
-
-export const modifyTechPack = async (currentData: TechPackData, userInstruction: string): Promise<TechPackData> => {
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) throw new Error("API Key missing");
-    const ai = new GoogleGenAI({ apiKey });
-
-    // Use stripped data to save tokens
-    const cleanData = stripImagesFromData(currentData);
-
-    const prompt = `
-    Current Tech Pack Data: ${JSON.stringify(cleanData)}
-    
-    User Instruction for Modification: "${userInstruction}"
-    
-    Task: Update the Tech Pack data to reflect this modification. 
-    1. Adjust measurements if the silhouette changes (e.g. 'crop it' -> shorter body length).
-    2. Update BOM if materials change (e.g. 'add zipper').
-    3. Update Construction details.
-    4. CRITICAL: Update the 'sketchPrompts.front', 'sketchPrompts.back', and 'sketchPrompts.side' to describe the NEW look visually so we can regenerate sketches. KEEP THEM BLANK/PLAIN.
-    `;
-
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: { parts: [{ text: prompt }] },
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: techPackSchema,
-            systemInstruction: "You are an intelligent design assistant. Modify the tech pack JSON structure to perfectly match the user's design change request."
-        }
-    });
-
-    return JSON.parse(response.text!) as TechPackData;
-};
-
-export const translateTechPack = async (data: TechPackData, targetLanguage: string): Promise<TechPackData> => {
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) throw new Error("API Key missing");
-    const ai = new GoogleGenAI({ apiKey });
-
-    const cleanData = stripImagesFromData(data);
-
-    const prompt = `Translate the descriptive fields of this Tech Pack into ${targetLanguage}. 
-    Keep technical codes (like 'HPS', 'GSM') in English if that is the industry standard for that region, otherwise translate.
-    Translate: Style Name, Description, Fabrication, Colorway, Measurement Descriptions, BOM Item/Descriptions, Construction Instructions, Palette Names, Label/Packaging descriptions.
-    
-    Data: ${JSON.stringify(cleanData)}`;
-
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: { parts: [{ text: prompt }] },
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: techPackSchema
-        }
-    });
-
-    return JSON.parse(response.text!) as TechPackData;
-};
-
-export const generateFitComments = async (data: TechPackData): Promise<string> => {
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) throw new Error("API Key missing");
-    const ai = new GoogleGenAI({ apiKey });
-
-    const cleanData = stripImagesFromData(data);
-
-    const prompt = `
-    Analyze the measurements of this garment sample compared to the spec.
-    Measurements Data: ${JSON.stringify(data.measurements)}
-    
-    Task: Write professional technical fit comments to the factory.
-    1. Identify points of measure that failed (Variance > Tolerance).
-    2. Suggest specific pattern corrections (e.g., "Relax tension at armhole", "Increase grading at hip").
-    3. Tone should be professional, direct, and constructive.
-    4. Return ONLY the comments as a structured string.
-    `;
-
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: { parts: [{ text: prompt }] }
-    });
-
-    return response.text || "No comments generated.";
 };
 
 export const generateTechnicalSketch = async (prompt: string, referenceImage?: string): Promise<string> => {
@@ -448,39 +331,44 @@ export const generateTechnicalSketch = async (prompt: string, referenceImage?: s
   if (!apiKey) throw new Error("API Key missing");
   const ai = new GoogleGenAI({ apiKey });
 
-  const parts: any[] = [];
-  if (referenceImage) {
-      const cleanBase64 = referenceImage.includes('base64,') ? referenceImage.split('base64,')[1] : referenceImage;
-      parts.push({ inlineData: { mimeType: "image/jpeg", data: cleanBase64 } });
-      parts.push({ text: "Reference Image: Use the structure, silhouette, and proportions of this image EXACTLY. Do not hallucinate features. Convert this photo into a technical flat sketch." });
-  }
+  const getParts = (includeImage: boolean) => {
+      const parts: any[] = [];
+      if (includeImage && referenceImage) {
+          const cleanBase64 = referenceImage.includes('base64,') ? referenceImage.split('base64,')[1] : referenceImage;
+          parts.push({ inlineData: { mimeType: "image/jpeg", data: cleanBase64 } });
+          parts.push({ text: "Reference Image: Adhere to the silhouette and proportions of this image." });
+      }
+      return parts;
+  };
 
-  // STRICTLY ENFORCED BLANK TEMPLATE STYLE FOR ACCURATE TRACING
   const enhancedPrompt = `
-  Task: Create a Precise Technical Fashion Flat Sketch (CAD) by TRACING the structure of the reference image (if provided) or adhering strictly to the description.
-  Style: 2D Vector-style line art. Strict Black and White. Uniform line weight (1.5px).
-  
-  CRITICAL RULES:
-  1. ACCURACY: Trace the silhouette, cut lines, pockets, and seams EXACTLY as they appear in the reference image/description. Do not distort proportions.
-  2. NO FILL: The garment body must be SOLID WHITE. No grey fills, no shading, no drop shadows.
-  3. CLEAN: No logos, no prints, no graphics, no text annotations. Just the structural lines.
-  4. SYMMETRY: Ensure the garment looks symmetrical and laid flat.
-  
-  Description: ${prompt}
+  Create a Technical Fashion Flat Sketch (Vector Line Art).
+  - Subject: ${prompt}
+  - Style: Technical black and white line drawing. No shading, no fill, pure white background.
+  - View: Flat, symmetrical, professional CAD style.
   `;
 
-  // Use helper with fallback
-  // We include parts (which might have the image) in the extraParts argument
-  const response = await generateImageWithFallback(ai, enhancedPrompt, parts, '1K', '1:1');
-
-  for (const part of response.candidates?.[0]?.content?.parts || []) {
-    if (part.inlineData) return part.inlineData.data;
+  // Attempt 1: With Reference Image
+  try {
+      // Default to Flash model for sketches as it's faster and less strict on person-safety triggers
+      const response = await generateImageWithFallback(ai, enhancedPrompt, getParts(true), '2K', '1:1', false);
+      for (const part of response.candidates?.[0]?.content?.parts || []) {
+        if (part.inlineData) return part.inlineData.data;
+      }
+  } catch (e) {
+      console.warn("Sketch generation with reference failed, retrying text only...", e);
+      await delay(1000);
   }
-  
-  // If we are here, maybe check if there is text explaining why
-  const textPart = response.candidates?.[0]?.content?.parts?.find(p => p.text);
-  if (textPart) {
-      console.warn("Model returned text instead of image:", textPart.text);
+
+  // Attempt 2: Text Only (Fallback)
+  try {
+      const response = await generateImageWithFallback(ai, enhancedPrompt, [], '2K', '1:1', false);
+      for (const part of response.candidates?.[0]?.content?.parts || []) {
+        if (part.inlineData) return part.inlineData.data;
+      }
+  } catch (e) {
+      console.error("Sketch generation failed completely", e);
+      throw e;
   }
   
   throw new Error("No image generated");
@@ -492,8 +380,7 @@ export const recreateGraphic = async (description: string, technique: string): P
     const ai = new GoogleGenAI({ apiKey });
     const prompt = `Graphic Design Asset: ${description}. Style: Professional vector graphic for clothing (${technique}). White background. High contrast.`;
     
-    // Use helper with fallback
-    const response = await generateImageWithFallback(ai, prompt, [], '1K', '1:1');
+    const response = await generateImageWithFallback(ai, prompt, [], '1K', '1:1', false);
     
     for (const part of response.candidates?.[0]?.content?.parts || []) {
         if (part.inlineData) return part.inlineData.data;
@@ -502,7 +389,6 @@ export const recreateGraphic = async (description: string, technique: string): P
 };
 
 export const generateRealisticMockup = async (data: TechPackData, sketchBase64?: string | null): Promise<string> => {
-    // Instantiate new client to capture fresh API Key if set via dialog
     const apiKey = process.env.API_KEY;
     if (!apiKey) throw new Error("API Key missing");
     const ai = new GoogleGenAI({ apiKey });
@@ -510,57 +396,25 @@ export const generateRealisticMockup = async (data: TechPackData, sketchBase64?:
     const parts: any[] = [];
     
     if (sketchBase64) {
-        // Ensure clean base64 string
         const cleanBase64 = sketchBase64.includes('base64,') ? sketchBase64.split('base64,')[1] : sketchBase64;
         parts.push({ inlineData: { mimeType: "image/png", data: cleanBase64 } });
-        parts.push({ text: "Use this technical sketch as the precise structural reference for the garment silhouette." });
+        parts.push({ text: "Use this sketch as structural reference." });
     }
 
     const prompt = `
-    Transform the input (if provided) or description into a professional, hyper-realistic flat lay product photograph.
-    
-    Product Details:
-    - Item: ${data.styleName}
-    - Color: ${data.colorWay}
-    - Material/Texture: ${data.fabrication}
-    - Description: ${data.description}
-    
-    Requirements:
-    - High-end fashion e-commerce photography style.
-    - Flat lay on a clean neutral white or concrete background.
-    - Photorealistic fabric textures, folds, shadows, and studio lighting.
-    - 4K Resolution.
-    - NO text, NO watermarks, NO arrows/annotations from the sketch. Pure product image.
+    Fashion Product Photography.
+    Item: ${data.styleName} - ${data.description}.
+    Color: ${data.colorWay}. Material: ${data.fabrication}.
+    Style: High-end e-commerce flat lay, white background, soft lighting, 4k.
     `;
     
-    // Use helper with fallback
-    const response = await generateImageWithFallback(ai, prompt, parts, '2K', '1:1');
+    // Prefer Pro for high quality mockups
+    const response = await generateImageWithFallback(ai, prompt, parts, '2K', '1:1', true);
     
     for (const part of response.candidates?.[0]?.content?.parts || []) {
         if (part.inlineData) return part.inlineData.data;
     }
     throw new Error("No mockup generated");
-};
-
-export const generateVirtualTryOn = async (modelImage: string, garmentDescription: string, garmentImage?: string): Promise<string> => {
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) throw new Error("API Key missing");
-    const ai = new GoogleGenAI({ apiKey });
-    const parts: any[] = [{ inlineData: { mimeType: "image/jpeg", data: modelImage } }];
-    if (garmentImage) {
-        const cleanGarment = garmentImage.includes('base64,') ? garmentImage.split('base64,')[1] : garmentImage;
-        parts.push({ inlineData: { mimeType: "image/png", data: cleanGarment } });
-    }
-    
-    const prompt = `Virtual Try-On. Model wearing described garment: ${garmentDescription}. Photorealistic, high fashion.`;
-
-    // Use helper with fallback - Try-on benefits from 3:4 usually, but we fallback to what's available
-    const response = await generateImageWithFallback(ai, prompt, parts, '2K', '3:4');
-
-    for (const part of response.candidates?.[0]?.content?.parts || []) {
-        if (part.inlineData) return part.inlineData.data;
-    }
-    throw new Error("No try-on generated");
 };
 
 export const vectorizeImage = async (base64Image: string): Promise<string> => {
@@ -581,14 +435,92 @@ export const vectorizeImage = async (base64Image: string): Promise<string> => {
   return svgCode.trim();
 };
 
+export const generateVirtualTryOn = async (modelImageBase64: string, garmentDescription: string, garmentImageBase64?: string): Promise<string> => {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) throw new Error("API Key missing");
+    const ai = new GoogleGenAI({ apiKey });
+
+    const parts: any[] = [];
+    
+    const cleanModel = modelImageBase64.includes('base64,') ? modelImageBase64.split('base64,')[1] : modelImageBase64;
+    parts.push({ inlineData: { mimeType: "image/jpeg", data: cleanModel } });
+
+    if (garmentImageBase64) {
+        const cleanGarment = garmentImageBase64.includes('base64,') ? garmentImageBase64.split('base64,')[1] : garmentImageBase64;
+        parts.push({ inlineData: { mimeType: "image/png", data: cleanGarment } });
+    }
+
+    const prompt = `
+    Virtual Try-On Task: Model + Garment.
+    Garment Description: ${garmentDescription}
+    Generate a photo of the model wearing the garment. Keep identity and pose.
+    `;
+
+    const response = await generateImageWithFallback(ai, prompt, parts, '2K', '3:4', true);
+    
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+        if (part.inlineData) return part.inlineData.data;
+    }
+    throw new Error("No try-on image generated");
+};
+
 export const createTechPackChat = (techData?: TechPackData | null): Chat => {
     const apiKey = process.env.API_KEY;
     const ai = new GoogleGenAI({ apiKey: apiKey || '' });
     let systemPrompt = "You are an expert Technical Fashion Designer.";
     if (techData) systemPrompt += ` Context: Style ${techData.styleName}, ${techData.description}`;
     return ai.chats.create({
-        // Use flash for chat as it is more robust for general Q&A permissions
         model: 'gemini-2.5-flash',
         config: { systemInstruction: systemPrompt }
     });
+};
+
+export const modifyTechPack = async (currentData: TechPackData, userInstruction: string): Promise<TechPackData> => {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) throw new Error("API Key missing");
+    const ai = new GoogleGenAI({ apiKey });
+
+    const cleanData = stripImagesFromData(currentData);
+
+    const prompt = `
+    Current Tech Pack Data: ${JSON.stringify(cleanData)}
+    User Instruction: "${userInstruction}"
+    Task: Update measurements, BOM, construction, and sketch prompts to reflect the changes.
+    `;
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: { parts: [{ text: prompt }] },
+        config: {
+            responseMimeType: "application/json",
+            responseSchema: techPackSchema
+        }
+    });
+
+    return JSON.parse(response.text!) as TechPackData;
+};
+
+export const translateTechPack = async (data: TechPackData, targetLanguage: string): Promise<TechPackData> => {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) throw new Error("API Key missing");
+    const ai = new GoogleGenAI({ apiKey });
+
+    const cleanData = stripImagesFromData(data);
+
+    const prompt = `Translate descriptive fields to ${targetLanguage}. Data: ${JSON.stringify(cleanData)}`;
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: { parts: [{ text: prompt }] },
+        config: {
+            responseMimeType: "application/json",
+            responseSchema: techPackSchema
+        }
+    });
+
+    return JSON.parse(response.text!) as TechPackData;
+};
+
+export const generateFitComments = async (data: TechPackData): Promise<string> => {
+    return "Feature pending implementation.";
 };

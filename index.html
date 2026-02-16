@@ -6,6 +6,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>desboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              mono: ['JetBrains Mono', 'monospace'],
+            }
+          }
+        }
+      }
+    </script>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;800;900&family=JetBrains+Mono:wght@300;400&display=swap');
       
@@ -15,12 +28,18 @@
         -moz-osx-font-smoothing: grayscale;
         background-attachment: fixed;
         transition: background 0.5s ease, color 0.5s ease;
+        min-height: 100vh;
       }
 
       /* LIGHT MODE (Default) */
       body {
-        /* Hyper-minimalist White/Gray Gradient */
-        background: linear-gradient(180deg, #FFFFFF 0%, #F2F2F7 100%);
+        /* Gradient + Grid Pattern */
+        background-color: #F2F2F7;
+        background-image: 
+          linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px),
+          linear-gradient(180deg, #FFFFFF 0%, #F2F2F7 100%);
+        background-size: 40px 40px, 40px 40px, 100% 100%;
         color: #1D1D1F;
       }
       
@@ -41,7 +60,12 @@
 
       /* DARK MODE */
       body.dark-mode {
-        background: linear-gradient(180deg, #000000 0%, #1C1C1E 100%);
+        background-color: #000000;
+        background-image: 
+          linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+          linear-gradient(180deg, #000000 0%, #1C1C1E 100%);
+        background-size: 40px 40px, 40px 40px, 100% 100%;
         color: #F5F5F7;
       }
 
@@ -85,6 +109,23 @@
       }
       .animate-fade-in-up {
         animation: fade-in-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+
+      @keyframes fade-out {
+        from { opacity: 1; pointer-events: auto; }
+        to { opacity: 0; pointer-events: none; }
+      }
+      .animate-fade-out {
+        animation: fade-out 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+
+      @keyframes jiggle {
+        0% { transform: rotate(-0.5deg); }
+        50% { transform: rotate(0.5deg); }
+        100% { transform: rotate(-0.5deg); }
+      }
+      .animate-jiggle {
+        animation: jiggle 0.3s infinite ease-in-out;
       }
 
       /* Logo Text Loader Animation - Shimmer Effect */

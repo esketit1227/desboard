@@ -186,13 +186,18 @@ export interface GeneratedImages {
   mockup?: string | null;
 }
 
-export type AssetType = 'logo' | 'techpack';
+export type AssetType = 'logo' | 'techpack' | 'folder';
+export type ProjectStatus = 'pending' | 'on-going' | 'completed' | 'archived';
 
 export interface DesignAsset {
   id: string;
+  parentId?: string | null; // For nesting inside folders
   type: AssetType;
   name: string;
   url?: string;
+  client?: string; // Tagged client
+  status?: ProjectStatus;
+  shareToken?: string; // For public sharing
   data?: {
     techData: TechPackData;
     images: GeneratedImages;
